@@ -16,16 +16,10 @@ def index():
     return render_template("index.html", data_dir=str(current_app.config["DATA_DIR"]))
 
 
-@main_bp.post("/api/cargar")
-def cargar():
-    data_dir: Path = current_app.config["DATA_DIR"]
-    hoy = date.today()
-
-    try:
-        ruta_hoy, ruta_ayer, fecha_ayer = model.find_today_and_previous(data_dir, hoy)
-        df_hoy = model.load_excel(ruta_hoy)
-    except model.ReportError as exc:
-        return jsonify(ok=False, error=str(exc)), 400
+def _cargar_desde_carpeta(data_dir: Path, hoy: date):
+    """Lógica común de carga: localiza hoy/anterior, los lee y arma la respuesta JSON."""
+    ruta_hoy, ruta_ayer, fecha_ayer = model.find_today_and_previous(data_dir, hoy)
+    df_hoy = model.load_excel(ruta_hoy)
 
     resumen_hoy = model.summarize(ruta_hoy, df_hoy)
     session["ruta_hoy"] = str(ruta_hoy)
@@ -61,6 +55,34 @@ def cargar():
         columnas=resumen_hoy.columns,
         warning=warning,
     )
+
+
+@main_bp.post("/api/cargar")
+def cargar():
+    data_dir: Path = current_app.config["DATA_DIR"]
+    hoy = date.today()
+
+    try:
+        return _cargar_desde_carpeta(data_dir, hoy)
+    except model.ReportError as exc:
+        necesita_subida = "más de un archivo" not in str(exc)
+        return jsonify(ok=False, error=str(exc), necesita_subida=necesita_subida), 400
+
+
+@main_bp.post("/api/subir")
+def subir():
+    data_dir: Path = current_app.config["DATA_DIR"]
+    hoy = date.today()
+
+    archivo = request.files.get("archivo")
+    if archivo is None or not archivo.filename:
+        return jsonify(ok=False, error="Selecciona un archivo Excel para subir."), 400
+
+    try:
+        model.save_uploaded_file(data_dir, archivo.filename, archivo.read(), hoy)
+        return _cargar_desde_carpeta(data_dir, hoy)
+    except model.ReportError as exc:
+        return jsonify(ok=False, error=str(exc)), 400
 
 
 @main_bp.post("/api/cruzar")

@@ -7,6 +7,9 @@ const keyColumnSelect = document.getElementById("key-column");
 const badge1 = document.getElementById("badge-1");
 const badge2 = document.getElementById("badge-2");
 const step2 = document.querySelector('.step[data-step="2"]');
+const subidaArchivo = document.getElementById("subida-archivo");
+const archivoInput = document.getElementById("archivo-input");
+const btnSubir = document.getElementById("btn-subir");
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (c) => (
@@ -39,22 +42,13 @@ async function postJson(url, body) {
   return { ok: resp.ok && data.ok, data };
 }
 
-btnCargar.addEventListener("click", async () => {
-  btnCargar.disabled = true;
-  btnCargar.textContent = "Cargando...";
-  resultadoCargar.hidden = false;
-  resultadoCargar.innerHTML = '<p class="step-desc">Buscando archivos en la carpeta...</p>';
+async function postForm(url, formData) {
+  const resp = await fetch(url, { method: "POST", body: formData });
+  const data = await resp.json();
+  return { ok: resp.ok && data.ok, data };
+}
 
-  const { ok, data } = await postJson("/api/cargar");
-
-  btnCargar.disabled = false;
-  btnCargar.textContent = "Cargar";
-
-  if (!ok) {
-    resultadoCargar.innerHTML = `<div class="info-line err">⚠️ ${escapeHtml(data.error)}</div>`;
-    return;
-  }
-
+function renderCargarExito(data) {
   let html = `<div class="info-line ok">✅ Hoy: <span class="filename">${escapeHtml(data.hoy.filename)}</span> — ${data.hoy.rows} filas</div>`;
 
   if (data.ayer) {
@@ -66,9 +60,11 @@ btnCargar.addEventListener("click", async () => {
     html += `<div class="info-line err">⚠️ ${escapeHtml(data.warning)}</div>`;
   }
 
+  resultadoCargar.hidden = false;
   resultadoCargar.innerHTML = html;
   badge1.classList.add("is-done");
   badge1.textContent = "✓";
+  subidaArchivo.hidden = true;
 
   if (data.ayer) {
     keyColumnSelect.innerHTML = data.columnas
@@ -85,6 +81,56 @@ btnCargar.addEventListener("click", async () => {
 
   resultadoCruzar.hidden = true;
   resultadoCruzar.innerHTML = "";
+}
+
+btnCargar.addEventListener("click", async () => {
+  btnCargar.disabled = true;
+  btnCargar.textContent = "Cargando...";
+  resultadoCargar.hidden = false;
+  resultadoCargar.innerHTML = '<p class="step-desc">Buscando archivos en el servidor...</p>';
+  subidaArchivo.hidden = true;
+
+  const { ok, data } = await postJson("/api/cargar");
+
+  btnCargar.disabled = false;
+  btnCargar.textContent = "Cargar";
+
+  if (!ok) {
+    resultadoCargar.innerHTML = `<div class="info-line err">⚠️ ${escapeHtml(data.error)}</div>`;
+    if (data.necesita_subida) {
+      subidaArchivo.hidden = false;
+    }
+    return;
+  }
+
+  renderCargarExito(data);
+});
+
+btnSubir.addEventListener("click", async () => {
+  const file = archivoInput.files[0];
+  if (!file) {
+    resultadoCargar.innerHTML = `<div class="info-line err">⚠️ Selecciona un archivo primero.</div>`;
+    return;
+  }
+
+  btnSubir.disabled = true;
+  btnSubir.textContent = "Subiendo...";
+  resultadoCargar.hidden = false;
+  resultadoCargar.innerHTML = '<p class="step-desc">Subiendo y cargando archivo...</p>';
+
+  const formData = new FormData();
+  formData.append("archivo", file);
+  const { ok, data } = await postForm("/api/subir", formData);
+
+  btnSubir.disabled = false;
+  btnSubir.textContent = "Subir y cargar";
+
+  if (!ok) {
+    resultadoCargar.innerHTML = `<div class="info-line err">⚠️ ${escapeHtml(data.error)}</div>`;
+    return;
+  }
+
+  renderCargarExito(data);
 });
 
 btnCruzar.addEventListener("click", async () => {

@@ -105,6 +105,18 @@ def find_today_and_previous(
     return ruta_hoy, ruta_anterior, fecha_anterior
 
 
+def save_uploaded_file(directory: Path, original_name: str, content: bytes, today: date) -> Path:
+    """Guarda un archivo subido por el usuario con un nombre normalizado (fecha de hoy)."""
+    suffix = Path(original_name).suffix.lower()
+    if suffix not in EXCEL_EXTENSIONS:
+        raise ReportError("El archivo debe ser un Excel (.xlsx o .xls).")
+
+    directory.mkdir(parents=True, exist_ok=True)
+    destino = directory / f"reporte_{today.isoformat()}{suffix}"
+    destino.write_bytes(content)
+    return destino
+
+
 def load_excel(path: Path) -> pd.DataFrame:
     try:
         df = pd.read_excel(path, sheet_name=0, dtype=str, keep_default_na=False)

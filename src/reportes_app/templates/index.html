@@ -26,6 +26,12 @@
 
           <div id="resultado-cargar" class="result-box" hidden></div>
 
+          <div id="subida-archivo" class="field-group" hidden>
+            <label for="archivo-input">No se encontró el archivo de hoy en el servidor. Súbelo aquí:</label>
+            <input type="file" id="archivo-input" accept=".xlsx,.xls">
+            <button id="btn-subir" class="btn btn-primary btn-secondary-spacing">Subir y cargar</button>
+          </div>
+
           <div id="selector-clave" class="field-group" hidden>
             <label for="key-column">Columna clave para comparar (ID / folio / código):</label>
             <select id="key-column"></select>
