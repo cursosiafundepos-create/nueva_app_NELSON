@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cruce de Reportes</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <div class="page">
+    <header class="page-header">
+      <h1>Cruce de Reportes Diarios</h1>
+      <p class="subtitle">Carpeta monitoreada: <code>{{ data_dir }}</code></p>
+    </header>
+
+    <ol class="stepper">
+      <li class="step" data-step="1">
+        <div class="step-badge is-active" id="badge-1">1</div>
+        <div class="step-body">
+          <h2>Cargar reporte de hoy</h2>
+          <p class="step-desc">
+            Busca en la carpeta el archivo cuyo nombre incluya la fecha de hoy, y también
+            intenta localizar el de ayer para poder compararlos después.
+          </p>
+          <button id="btn-cargar" class="btn btn-primary">Cargar</button>
+
+          <div id="resultado-cargar" class="result-box" hidden></div>
+
+          <div id="selector-clave" class="field-group" hidden>
+            <label for="key-column">Columna clave para comparar (ID / folio / código):</label>
+            <select id="key-column"></select>
+          </div>
+        </div>
+      </li>
+
+      <li class="step is-disabled" data-step="2">
+        <div class="step-badge" id="badge-2">2</div>
+        <div class="step-body">
+          <h2>Cruzar información</h2>
+          <p class="step-desc">
+            Compara el reporte de hoy contra el de ayer usando la columna clave elegida y
+            separa lo que ya se había procesado de lo que es nuevo.
+          </p>
+          <button id="btn-cruzar" class="btn btn-primary" disabled>Cruzar</button>
+
+          <div id="resultado-cruzar" class="result-box" hidden></div>
+        </div>
+      </li>
+    </ol>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
