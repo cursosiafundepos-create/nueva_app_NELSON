@@ -8,7 +8,10 @@ from pathlib import Path
 
 import pandas as pd
 
-DATE_IN_FILENAME = re.compile(r"(\d{4}-\d{2}-\d{2})")
+# Soporta nombres como "reporte_2026-09-14.xlsx" (ISO) o "14-09-2026.xlsx" (DD-MM-YYYY,
+# el formato real usado en los reportes de la empresa).
+ISO_DATE = re.compile(r"(\d{4})-(\d{2})-(\d{2})")
+DMY_DATE = re.compile(r"(\d{2})-(\d{2})-(\d{4})")
 EXCEL_EXTENSIONS = (".xlsx", ".xls")
 
 
@@ -31,44 +34,75 @@ class ComparisonResult:
     nuevo_hoy: list[dict] = field(default_factory=list)
 
 
-def _find_file_for_date(directory: Path, target: date) -> Path:
-    """Busca en `directory` un Excel cuyo nombre contenga la fecha `target` (YYYY-MM-DD)."""
-    target_str = target.isoformat()
+def _parse_date_from_filename(name: str) -> date | None:
+    """Extrae una fecha del nombre de archivo, probando ISO (YYYY-MM-DD) y DD-MM-YYYY."""
+    m = ISO_DATE.search(name)
+    if m:
+        year, month, day = m.groups()
+        try:
+            return date(int(year), int(month), int(day))
+        except ValueError:
+            pass
+
+    m = DMY_DATE.search(name)
+    if m:
+        day, month, year = m.groups()
+        try:
+            return date(int(year), int(month), int(day))
+        except ValueError:
+            pass
+
+    return None
+
+
+def _dated_excel_files(directory: Path) -> list[tuple[date, Path]]:
     if not directory.exists():
         raise ReportError(f"La carpeta '{directory}' no existe.")
 
-    candidatos = [
-        p
-        for p in directory.iterdir()
-        if p.suffix.lower() in EXCEL_EXTENSIONS and target_str in p.name
-    ]
+    encontrados = []
+    for p in directory.iterdir():
+        if p.suffix.lower() not in EXCEL_EXTENSIONS:
+            continue
+        fecha = _parse_date_from_filename(p.name)
+        if fecha is not None:
+            encontrados.append((fecha, p))
+    return encontrados
 
-    if not candidatos:
+
+def find_today_and_previous(
+    directory: Path, today: date
+) -> tuple[Path, Path | None, date | None]:
+    """Devuelve (ruta_hoy, ruta_anterior_o_None, fecha_anterior_o_None).
+
+    ruta_hoy: archivo cuyo nombre contiene la fecha de hoy. Lanza ReportError si no existe
+    o si hay más de uno.
+    ruta_anterior: el archivo con fecha más reciente ANTES de hoy (no necesariamente el día
+    calendario inmediato anterior, ya que los reportes no siempre se generan todos los días).
+    """
+    archivos = _dated_excel_files(directory)
+
+    de_hoy = [p for fecha, p in archivos if fecha == today]
+    if not de_hoy:
         raise ReportError(
-            f"No se encontró ningún archivo con la fecha {target_str} en '{directory.name}'."
+            f"No se encontró ningún archivo con la fecha de hoy ({today.isoformat()}) "
+            f"en '{directory.name}'."
         )
-    if len(candidatos) > 1:
-        nombres = ", ".join(p.name for p in candidatos)
+    if len(de_hoy) > 1:
+        nombres = ", ".join(p.name for p in de_hoy)
         raise ReportError(
-            f"Hay más de un archivo con la fecha {target_str}: {nombres}. "
-            "Debe existir solo uno por día."
+            f"Hay más de un archivo con la fecha de hoy: {nombres}. Debe existir solo uno."
         )
-    return candidatos[0]
+    ruta_hoy = de_hoy[0]
 
+    anteriores = sorted(
+        ((fecha, p) for fecha, p in archivos if fecha < today), key=lambda t: t[0]
+    )
+    if anteriores:
+        fecha_anterior, ruta_anterior = anteriores[-1]
+    else:
+        fecha_anterior, ruta_anterior = None, None
 
-def find_today_and_yesterday(directory: Path, today: date) -> tuple[Path, Path | None]:
-    """Devuelve (ruta_hoy, ruta_ayer_o_None). Lanza ReportError si no existe el de hoy."""
-    from datetime import timedelta
-
-    ruta_hoy = _find_file_for_date(directory, today)
-
-    yesterday = today - timedelta(days=1)
-    try:
-        ruta_ayer = _find_file_for_date(directory, yesterday)
-    except ReportError:
-        ruta_ayer = None
-
-    return ruta_hoy, ruta_ayer
+    return ruta_hoy, ruta_anterior, fecha_anterior
 
 
 def load_excel(path: Path) -> pd.DataFrame:

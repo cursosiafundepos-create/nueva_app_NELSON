@@ -22,7 +22,7 @@ def cargar():
     hoy = date.today()
 
     try:
-        ruta_hoy, ruta_ayer = model.find_today_and_yesterday(data_dir, hoy)
+        ruta_hoy, ruta_ayer, fecha_ayer = model.find_today_and_previous(data_dir, hoy)
         df_hoy = model.load_excel(ruta_hoy)
     except model.ReportError as exc:
         return jsonify(ok=False, error=str(exc)), 400
@@ -37,11 +37,20 @@ def cargar():
             df_ayer = model.load_excel(ruta_ayer)
             resumen_ayer = model.summarize(ruta_ayer, df_ayer)
             session["ruta_ayer"] = str(ruta_ayer)
+            dias_atras = (hoy - fecha_ayer).days
+            if dias_atras != 1:
+                warning = (
+                    f"Nota: el reporte anterior disponible es del {fecha_ayer.isoformat()} "
+                    f"(hace {dias_atras} días), no de ayer exactamente. Se usará ese de todas "
+                    "formas por ser el más reciente antes de hoy."
+                )
         except model.ReportError as exc:
             warning = str(exc)
             session.pop("ruta_ayer", None)
     else:
-        warning = f"No se encontró un archivo de ayer ({hoy.isoformat()} - 1 día) para comparar."
+        warning = (
+            f"No se encontró ningún archivo anterior a hoy ({hoy.isoformat()}) para comparar."
+        )
         session.pop("ruta_ayer", None)
 
     return jsonify(

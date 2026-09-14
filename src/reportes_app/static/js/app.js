@@ -58,9 +58,12 @@ btnCargar.addEventListener("click", async () => {
   let html = `<div class="info-line ok">✅ Hoy: <span class="filename">${escapeHtml(data.hoy.filename)}</span> — ${data.hoy.rows} filas</div>`;
 
   if (data.ayer) {
-    html += `<div class="info-line ok">✅ Ayer: <span class="filename">${escapeHtml(data.ayer.filename)}</span> — ${data.ayer.rows} filas</div>`;
+    html += `<div class="info-line ok">✅ Anterior: <span class="filename">${escapeHtml(data.ayer.filename)}</span> — ${data.ayer.rows} filas</div>`;
+    if (data.warning) {
+      html += `<div class="info-line warn">ℹ️ ${escapeHtml(data.warning)}</div>`;
+    }
   } else {
-    html += `<div class="info-line warn">⚠️ ${escapeHtml(data.warning)}</div>`;
+    html += `<div class="info-line err">⚠️ ${escapeHtml(data.warning)}</div>`;
   }
 
   resultadoCargar.innerHTML = html;
